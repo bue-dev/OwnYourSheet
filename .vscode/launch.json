@@ -1,0 +1,25 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Backend: .NET API",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "backend: build",
+      "program": "${workspaceFolder}/backend/OwnYourSheet.Api/bin/Debug/net10.0/OwnYourSheet.Api.dll",
+      "args": [],
+      "cwd": "${workspaceFolder}/backend/OwnYourSheet.Api",
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "console": "integratedTerminal"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Full Stack",
+      "configurations": ["Backend: .NET API"],
+      "preLaunchTask": "frontend: serve"
+    }
+  ]
+}
