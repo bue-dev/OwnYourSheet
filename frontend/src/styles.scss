@@ -203,3 +203,13 @@ textarea.input {
     letter-spacing: 0.5px;
   }
 }
+
+// ===== Prism.js overrides =====
+pre[class*="language-"],
+code[class*="language-"] {
+  font-family: var(--font-mono) !important;
+  font-size: 12px !important;
+  line-height: 1.6 !important;
+  background: none !important;
+  text-shadow: none !important;
+}

@@ -1,7 +1,9 @@
-import { Component, input, output, signal } from '@angular/core';
+import { Component, input, output, signal, computed, AfterViewInit, OnChanges, ElementRef, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Entry, EntryType, EntryVariable } from '../../models/entry.model';
 import { ClipboardService } from '../../services/clipboard.service';
+
+declare const Prism: any;
 
 @Component({
   selector: 'app-entry-card',
@@ -39,7 +41,11 @@ import { ClipboardService } from '../../services/clipboard.service';
       </div>
 
       <div class="card-content">
-        <pre class="content-preview" [class.code]="entry().entryType === 1">{{ entry().content }}</pre>
+        @if (entry().entryType === 1 && entry().language) {
+          <pre class="content-preview code"><code #codeBlock [class]="'language-' + getPrismLanguage(entry().language)" [innerHTML]="highlightedContent()"></code></pre>
+        } @else {
+          <pre class="content-preview" [class.code]="entry().entryType === 1">{{ entry().content }}</pre>
+        }
       </div>
 
       @if (entry().variables.length > 0) {
@@ -219,7 +225,42 @@ export class EntryCardComponent {
   isExpanded = signal(true);
   variableValues = signal<Map<string, string>>(new Map());
 
+  highlightedContent = computed(() => {
+    const e = this.entry();
+    if (e.entryType === 1 && e.language && typeof Prism !== 'undefined') {
+      const lang = this.getPrismLanguage(e.language);
+      const grammar = Prism.languages[lang];
+      if (grammar) {
+        return Prism.highlight(e.content, grammar, lang);
+      }
+    }
+    return this.escapeHtml(e.content);
+  });
+
   constructor(private clipboard: ClipboardService) {}
+
+  getPrismLanguage(language: string | null): string {
+    const map: Record<string, string> = {
+      'csharp': 'csharp',
+      'python': 'python',
+      'javascript': 'javascript',
+      'typescript': 'typescript',
+      'html': 'html',
+      'css': 'css',
+      'sql': 'sql',
+      'bash': 'bash',
+      'json': 'json',
+      'yaml': 'yaml',
+    };
+    return map[language ?? ''] ?? 'plaintext';
+  }
+
+  private escapeHtml(text: string): string {
+    return text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
 
   getTypeLabel(type: EntryType): string {
     const labels: Record<number, string> = {
