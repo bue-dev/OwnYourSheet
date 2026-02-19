@@ -19,6 +19,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<CategoryService>();
 builder.Services.AddScoped<EntryService>();
 builder.Services.AddScoped<ExportImportService>();
+builder.Services.AddScoped<SearchService>();
 
 // --- Controllers ---
 builder.Services.AddControllers();
