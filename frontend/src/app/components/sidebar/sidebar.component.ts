@@ -1,11 +1,12 @@
 import { Component, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { CdkDropList, CdkDrag, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { Category } from '../../models/category.model';
 
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, CdkDropList, CdkDrag],
   template: `
     <aside class="sidebar">
       <div class="sidebar-header">
@@ -48,10 +49,11 @@ import { Category } from '../../models/category.model';
           </div>
         }
 
-        <div class="category-list">
+        <div class="category-list" cdkDropList (cdkDropListDropped)="onCategoryDrop($event)">
           @for (cat of categories(); track cat.id) {
             <div
               class="category-item"
+              cdkDrag
               [class.active]="selectedCategoryId() === cat.id"
               (click)="selectCategory.emit(cat)"
             >
@@ -260,6 +262,7 @@ export class SidebarComponent {
   deleteCategory = output<Category>();
   exportData = output<void>();
   importData = output<void>();
+  reorderCategories = output<Category[]>();
 
   isAddingCategory = signal(false);
   newCategoryTitle = '';
@@ -302,5 +305,11 @@ export class SidebarComponent {
   cancelEditCategory(): void {
     this.editingCategoryId.set(null);
     this.editCategoryTitle = '';
+  }
+
+  onCategoryDrop(event: CdkDragDrop<Category[]>): void {
+    const items = [...this.categories()];
+    moveItemInArray(items, event.previousIndex, event.currentIndex);
+    this.reorderCategories.emit(items);
   }
 }

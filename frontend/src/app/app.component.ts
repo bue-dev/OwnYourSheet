@@ -1,4 +1,5 @@
 import { Component, signal, OnInit } from '@angular/core';
+import { CdkDropList, CdkDrag, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { SidebarComponent } from './components/sidebar/sidebar.component';
 import { EntryCardComponent } from './components/entry-card/entry-card.component';
 import { EntryEditorComponent } from './components/entry-editor/entry-editor.component';
@@ -11,7 +12,7 @@ import { Entry, CreateEntry, UpdateEntry } from './models/entry.model';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [SidebarComponent, EntryCardComponent, EntryEditorComponent],
+  imports: [SidebarComponent, EntryCardComponent, EntryEditorComponent, CdkDropList, CdkDrag],
   template: `
     <div class="app-layout">
       <app-sidebar
@@ -23,6 +24,7 @@ import { Entry, CreateEntry, UpdateEntry } from './models/entry.model';
         (deleteCategory)="onDeleteCategory($event)"
         (exportData)="onExport()"
         (importData)="triggerImport()"
+        (reorderCategories)="onReorderCategories($event)"
       />
 
       <main class="main-content">
@@ -40,13 +42,15 @@ import { Entry, CreateEntry, UpdateEntry } from './models/entry.model';
             </button>
           </div>
 
-          <div class="entries-list">
+          <div class="entries-list" cdkDropList (cdkDropListDropped)="onEntryDrop($event)">
             @for (entry of entries(); track entry.id) {
-              <app-entry-card
-                [entry]="entry"
-                (edit)="openEditor($event)"
-                (remove)="onDeleteEntry($event)"
-              />
+              <div cdkDrag>
+                <app-entry-card
+                  [entry]="entry"
+                  (edit)="openEditor($event)"
+                  (remove)="onDeleteEntry($event)"
+                />
+              </div>
             } @empty {
               <div class="empty-main">
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="1.5">
@@ -223,6 +227,12 @@ export class AppComponent implements OnInit {
     });
   }
 
+  onReorderCategories(categories: Category[]): void {
+    this.categories.set(categories);
+    const reorderItems = categories.map((c, i) => ({ id: c.id, sortOrder: i }));
+    this.categoryService.reorder(reorderItems).subscribe();
+  }
+
   // === Entries ===
 
   loadEntries(categoryId: string): void {
@@ -264,6 +274,14 @@ export class AppComponent implements OnInit {
       this.loadEntries(this.selectedCategory()!.id);
       this.loadCategories();
     });
+  }
+
+  onEntryDrop(event: CdkDragDrop<Entry[]>): void {
+    const items = [...this.entries()];
+    moveItemInArray(items, event.previousIndex, event.currentIndex);
+    this.entries.set(items);
+    const reorderItems = items.map((e, i) => ({ id: e.id, sortOrder: i }));
+    this.entryService.reorder(reorderItems).subscribe();
   }
 
   // === Export/Import ===

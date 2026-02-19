@@ -213,3 +213,23 @@ code[class*="language-"] {
   background: none !important;
   text-shadow: none !important;
 }
+
+// ===== CDK Drag & Drop =====
+.cdk-drag-preview {
+  box-sizing: border-box;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  opacity: 0.9;
+}
+
+.cdk-drag-placeholder {
+  opacity: 0.3;
+}
+
+.cdk-drag-animating {
+  transition: transform 200ms ease;
+}
+
+.cdk-drop-list-dragging .cdk-drag {
+  transition: transform 200ms ease;
+}

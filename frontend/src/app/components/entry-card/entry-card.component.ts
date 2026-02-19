@@ -1,4 +1,5 @@
 import { Component, input, output, signal, computed, AfterViewInit, OnChanges, ElementRef, ViewChild } from '@angular/core';
+import { CdkDragHandle } from '@angular/cdk/drag-drop';
 import { FormsModule } from '@angular/forms';
 import { Entry, EntryType, EntryVariable } from '../../models/entry.model';
 import { ClipboardService } from '../../services/clipboard.service';
@@ -8,11 +9,18 @@ declare const Prism: any;
 @Component({
   selector: 'app-entry-card',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, CdkDragHandle],
   template: `
     <div class="card" [class.expanded]="isExpanded()">
       <div class="card-header" (click)="toggleExpand()">
         <div class="card-header-left">
+          <span class="drag-handle" cdkDragHandle (click)="$event.stopPropagation()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/>
+              <circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/>
+              <circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/>
+            </svg>
+          </span>
           <span class="entry-type-badge" [attr.data-type]="entry().entryType">
             {{ getTypeLabel(entry().entryType) }}
           </span>
@@ -99,6 +107,18 @@ declare const Prism: any;
       gap: 10px;
       min-width: 0;
       flex: 1;
+    }
+
+    .drag-handle {
+      display: flex;
+      align-items: center;
+      cursor: grab;
+      color: var(--text-muted);
+      padding: 2px;
+      border-radius: 3px;
+      transition: all 0.12s ease;
+      &:hover { color: var(--text-secondary); background: var(--bg-tertiary); }
+      &:active { cursor: grabbing; }
     }
 
     .card-header-right {
