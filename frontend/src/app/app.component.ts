@@ -1,5 +1,4 @@
-import { Component, signal, OnInit } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { Component, signal, computed, OnInit } from '@angular/core';
 import { CdkDropList, CdkDrag, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { SidebarComponent } from './components/sidebar/sidebar.component';
 import { EntryCardComponent } from './components/entry-card/entry-card.component';
@@ -7,14 +6,13 @@ import { EntryEditorComponent } from './components/entry-editor/entry-editor.com
 import { CategoryService } from './services/category.service';
 import { EntryService } from './services/entry.service';
 import { ClipboardService } from './services/clipboard.service';
-import { SearchService, SearchResult } from './services/search.service';
 import { Category } from './models/category.model';
-import { Entry, CreateEntry, UpdateEntry, EntryType } from './models/entry.model';
+import { Entry, CreateEntry, UpdateEntry } from './models/entry.model';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [FormsModule, SidebarComponent, EntryCardComponent, EntryEditorComponent, CdkDropList, CdkDrag],
+  imports: [SidebarComponent, EntryCardComponent, EntryEditorComponent, CdkDropList, CdkDrag],
   template: `
     <div class="app-layout">
       <app-sidebar
@@ -36,12 +34,12 @@ import { Entry, CreateEntry, UpdateEntry, EntryType } from './models/entry.model
           </svg>
           <input
             class="search-input"
-            [(ngModel)]="searchQuery"
-            (input)="onSearch()"
-            placeholder="Search all entries..."
+            [value]="searchQuery()"
+            (input)="searchQuery.set(getValue($event))"
+            placeholder="Filter entries..."
           />
-          @if (searchQuery) {
-            <button class="btn-icon" (click)="clearSearch()">
+          @if (searchQuery()) {
+            <button class="btn-icon" (click)="searchQuery.set('')">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
               </svg>
@@ -49,43 +47,11 @@ import { Entry, CreateEntry, UpdateEntry, EntryType } from './models/entry.model
           }
         </div>
 
-        @if (isSearching()) {
-          <div class="main-header">
-            <div>
-              <h1 class="main-title">Search Results</h1>
-              <span class="entry-count">{{ searchResults().length }} found</span>
-            </div>
-          </div>
-          <div class="entries-list">
-            @for (result of searchResults(); track result.id) {
-              <div class="search-result-card" (click)="goToResult(result)">
-                <div class="search-result-header">
-                  <span class="entry-type-badge" [attr.data-type]="result.entryType">
-                    {{ getTypeLabel(result.entryType) }}
-                  </span>
-                  <span class="search-result-title">{{ result.title }}</span>
-                  <span class="search-result-category">{{ result.categoryTitle }}</span>
-                  <button class="btn-copy" (click)="copyResult(result, $event)">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                    </svg>
-                    Copy
-                  </button>
-                </div>
-                <pre class="search-result-preview">{{ result.content }}</pre>
-              </div>
-            } @empty {
-              <div class="empty-main">
-                <p>No entries match your search.</p>
-              </div>
-            }
-          </div>
-        } @else if (selectedCategory()) {
+        @if (selectedCategory()) {
           <div class="main-header">
             <div>
               <h1 class="main-title">{{ selectedCategory()!.title }}</h1>
-              <span class="entry-count">{{ entries().length }} entries</span>
+              <span class="entry-count">{{ filteredEntries().length }} of {{ entries().length }} entries</span>
             </div>
             <button class="btn btn-primary" (click)="openEditor(null)">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -96,7 +62,7 @@ import { Entry, CreateEntry, UpdateEntry, EntryType } from './models/entry.model
           </div>
 
           <div class="entries-list" cdkDropList (cdkDropListDropped)="onEntryDrop($event)">
-            @for (entry of entries(); track entry.id) {
+            @for (entry of filteredEntries(); track entry.id) {
               <div cdkDrag>
                 <app-entry-card
                   [entry]="entry"
@@ -196,55 +162,6 @@ import { Entry, CreateEntry, UpdateEntry, EntryType } from './models/entry.model
       &::placeholder { color: var(--text-muted); }
     }
 
-    .search-result-card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      padding: 14px 16px;
-      cursor: pointer;
-      transition: all 0.12s ease;
-
-      &:hover {
-        border-color: var(--border-hover);
-        box-shadow: var(--shadow-sm);
-        .btn-copy { opacity: 1; }
-      }
-    }
-
-    .search-result-header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 8px;
-    }
-
-    .search-result-title {
-      font-weight: 600;
-      font-size: 14px;
-      flex: 1;
-    }
-
-    .search-result-category {
-      font-size: 11px;
-      color: var(--text-muted);
-      background: var(--bg-tertiary);
-      padding: 2px 8px;
-      border-radius: 8px;
-    }
-
-    .search-result-preview {
-      font-family: var(--font-mono);
-      font-size: 12px;
-      color: var(--text-secondary);
-      background: var(--bg-input);
-      border-radius: var(--radius-sm);
-      padding: 10px;
-      max-height: 80px;
-      overflow: hidden;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
-
     .btn-copy {
       opacity: 0;
       transition: opacity 0.12s ease;
@@ -261,20 +178,6 @@ import { Entry, CreateEntry, UpdateEntry, EntryType } from './models/entry.model
       font-weight: 600;
       cursor: pointer;
       &:hover { background: var(--accent-hover); }
-    }
-
-    .entry-type-badge {
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      padding: 3px 8px;
-      border-radius: 4px;
-      flex-shrink: 0;
-      &[data-type="0"] { background: var(--accent-subtle); color: var(--accent); }
-      &[data-type="1"] { background: var(--success-subtle); color: var(--success); }
-      &[data-type="2"] { background: rgba(255, 192, 72, 0.12); color: var(--warning); }
-      &[data-type="3"] { background: rgba(116, 185, 255, 0.12); color: #74b9ff; }
     }
 
     .main-header {
@@ -332,18 +235,24 @@ export class AppComponent implements OnInit {
   showEditor = signal(false);
   editingEntry = signal<Entry | null>(null);
 
-  searchQuery = '';
-  searchResults = signal<SearchResult[]>([]);
-  isSearching = signal(false);
-  private searchTimeout: any;
+  searchQuery = signal('');
+
+  filteredEntries = computed(() => {
+    const q = this.searchQuery().toLowerCase().trim();
+    const all = this.entries();
+    if (!q) return all;
+    return all.filter(e =>
+      e.title.toLowerCase().includes(q) ||
+      e.content.toLowerCase().includes(q)
+    );
+  });
 
   private importInputEl?: HTMLInputElement;
 
   constructor(
     private categoryService: CategoryService,
     private entryService: EntryService,
-    public clipboard: ClipboardService,
-    private searchService: SearchService
+    public clipboard: ClipboardService
   ) {}
 
   ngOnInit(): void {
@@ -370,6 +279,7 @@ export class AppComponent implements OnInit {
 
   onSelectCategory(cat: Category): void {
     this.selectedCategory.set(cat);
+    this.searchQuery.set('');
     this.loadEntries(cat.id);
   }
 
@@ -454,45 +364,10 @@ export class AppComponent implements OnInit {
     this.entryService.reorder(reorderItems).subscribe();
   }
 
-  // === Search ===
+  // === Helpers ===
 
-  onSearch(): void {
-    clearTimeout(this.searchTimeout);
-    if (!this.searchQuery || this.searchQuery.length < 2) {
-      this.isSearching.set(false);
-      this.searchResults.set([]);
-      return;
-    }
-    this.searchTimeout = setTimeout(() => {
-      this.isSearching.set(true);
-      this.searchService.search(this.searchQuery).subscribe(results => {
-        this.searchResults.set(results);
-      });
-    }, 250);
-  }
-
-  clearSearch(): void {
-    this.searchQuery = '';
-    this.isSearching.set(false);
-    this.searchResults.set([]);
-  }
-
-  goToResult(result: SearchResult): void {
-    this.clearSearch();
-    const cat = this.categories().find(c => c.id === result.categoryId);
-    if (cat) {
-      this.onSelectCategory(cat);
-    }
-  }
-
-  copyResult(result: SearchResult, event: Event): void {
-    event.stopPropagation();
-    this.clipboard.copyText(result.content);
-  }
-
-  getTypeLabel(type: number): string {
-    const labels: Record<number, string> = { 0: 'Text', 1: 'Code', 2: 'Prompt', 3: 'URL' };
-    return labels[type] ?? 'Text';
+  getValue(event: Event): string {
+    return (event.target as HTMLInputElement).value;
   }
 
   // === Export/Import ===
