@@ -1,4 +1,5 @@
 import { Component, signal, OnInit } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { CdkDropList, CdkDrag, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { SidebarComponent } from './components/sidebar/sidebar.component';
 import { EntryCardComponent } from './components/entry-card/entry-card.component';
@@ -6,13 +7,14 @@ import { EntryEditorComponent } from './components/entry-editor/entry-editor.com
 import { CategoryService } from './services/category.service';
 import { EntryService } from './services/entry.service';
 import { ClipboardService } from './services/clipboard.service';
+import { SearchService, SearchResult } from './services/search.service';
 import { Category } from './models/category.model';
-import { Entry, CreateEntry, UpdateEntry } from './models/entry.model';
+import { Entry, CreateEntry, UpdateEntry, EntryType } from './models/entry.model';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [SidebarComponent, EntryCardComponent, EntryEditorComponent, CdkDropList, CdkDrag],
+  imports: [FormsModule, SidebarComponent, EntryCardComponent, EntryEditorComponent, CdkDropList, CdkDrag],
   template: `
     <div class="app-layout">
       <app-sidebar
@@ -28,7 +30,58 @@ import { Entry, CreateEntry, UpdateEntry } from './models/entry.model';
       />
 
       <main class="main-content">
-        @if (selectedCategory()) {
+        <div class="search-bar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input
+            class="search-input"
+            [(ngModel)]="searchQuery"
+            (input)="onSearch()"
+            placeholder="Search all entries..."
+          />
+          @if (searchQuery) {
+            <button class="btn-icon" (click)="clearSearch()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          }
+        </div>
+
+        @if (isSearching()) {
+          <div class="main-header">
+            <div>
+              <h1 class="main-title">Search Results</h1>
+              <span class="entry-count">{{ searchResults().length }} found</span>
+            </div>
+          </div>
+          <div class="entries-list">
+            @for (result of searchResults(); track result.id) {
+              <div class="search-result-card" (click)="goToResult(result)">
+                <div class="search-result-header">
+                  <span class="entry-type-badge" [attr.data-type]="result.entryType">
+                    {{ getTypeLabel(result.entryType) }}
+                  </span>
+                  <span class="search-result-title">{{ result.title }}</span>
+                  <span class="search-result-category">{{ result.categoryTitle }}</span>
+                  <button class="btn-copy" (click)="copyResult(result, $event)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                    </svg>
+                    Copy
+                  </button>
+                </div>
+                <pre class="search-result-preview">{{ result.content }}</pre>
+              </div>
+            } @empty {
+              <div class="empty-main">
+                <p>No entries match your search.</p>
+              </div>
+            }
+          </div>
+        } @else if (selectedCategory()) {
           <div class="main-header">
             <div>
               <h1 class="main-title">{{ selectedCategory()!.title }}</h1>
@@ -113,6 +166,117 @@ import { Entry, CreateEntry, UpdateEntry } from './models/entry.model';
       flex-direction: column;
     }
 
+    .search-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      margin-bottom: 20px;
+      flex-shrink: 0;
+      color: var(--text-muted);
+      transition: border-color 0.15s ease;
+
+      &:focus-within {
+        border-color: var(--accent);
+        color: var(--text-secondary);
+      }
+    }
+
+    .search-input {
+      flex: 1;
+      background: none;
+      border: none;
+      color: var(--text-primary);
+      font-family: var(--font-body);
+      font-size: 14px;
+      outline: none;
+      &::placeholder { color: var(--text-muted); }
+    }
+
+    .search-result-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      cursor: pointer;
+      transition: all 0.12s ease;
+
+      &:hover {
+        border-color: var(--border-hover);
+        box-shadow: var(--shadow-sm);
+        .btn-copy { opacity: 1; }
+      }
+    }
+
+    .search-result-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .search-result-title {
+      font-weight: 600;
+      font-size: 14px;
+      flex: 1;
+    }
+
+    .search-result-category {
+      font-size: 11px;
+      color: var(--text-muted);
+      background: var(--bg-tertiary);
+      padding: 2px 8px;
+      border-radius: 8px;
+    }
+
+    .search-result-preview {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-secondary);
+      background: var(--bg-input);
+      border-radius: var(--radius-sm);
+      padding: 10px;
+      max-height: 80px;
+      overflow: hidden;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .btn-copy {
+      opacity: 0;
+      transition: opacity 0.12s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 10px;
+      border: none;
+      border-radius: var(--radius-sm);
+      background: var(--accent);
+      color: white;
+      font-family: var(--font-body);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      &:hover { background: var(--accent-hover); }
+    }
+
+    .entry-type-badge {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      flex-shrink: 0;
+      &[data-type="0"] { background: var(--accent-subtle); color: var(--accent); }
+      &[data-type="1"] { background: var(--success-subtle); color: var(--success); }
+      &[data-type="2"] { background: rgba(255, 192, 72, 0.12); color: var(--warning); }
+      &[data-type="3"] { background: rgba(116, 185, 255, 0.12); color: #74b9ff; }
+    }
+
     .main-header {
       display: flex;
       align-items: center;
@@ -168,12 +332,18 @@ export class AppComponent implements OnInit {
   showEditor = signal(false);
   editingEntry = signal<Entry | null>(null);
 
+  searchQuery = '';
+  searchResults = signal<SearchResult[]>([]);
+  isSearching = signal(false);
+  private searchTimeout: any;
+
   private importInputEl?: HTMLInputElement;
 
   constructor(
     private categoryService: CategoryService,
     private entryService: EntryService,
-    public clipboard: ClipboardService
+    public clipboard: ClipboardService,
+    private searchService: SearchService
   ) {}
 
   ngOnInit(): void {
@@ -282,6 +452,47 @@ export class AppComponent implements OnInit {
     this.entries.set(items);
     const reorderItems = items.map((e, i) => ({ id: e.id, sortOrder: i }));
     this.entryService.reorder(reorderItems).subscribe();
+  }
+
+  // === Search ===
+
+  onSearch(): void {
+    clearTimeout(this.searchTimeout);
+    if (!this.searchQuery || this.searchQuery.length < 2) {
+      this.isSearching.set(false);
+      this.searchResults.set([]);
+      return;
+    }
+    this.searchTimeout = setTimeout(() => {
+      this.isSearching.set(true);
+      this.searchService.search(this.searchQuery).subscribe(results => {
+        this.searchResults.set(results);
+      });
+    }, 250);
+  }
+
+  clearSearch(): void {
+    this.searchQuery = '';
+    this.isSearching.set(false);
+    this.searchResults.set([]);
+  }
+
+  goToResult(result: SearchResult): void {
+    this.clearSearch();
+    const cat = this.categories().find(c => c.id === result.categoryId);
+    if (cat) {
+      this.onSelectCategory(cat);
+    }
+  }
+
+  copyResult(result: SearchResult, event: Event): void {
+    event.stopPropagation();
+    this.clipboard.copyText(result.content);
+  }
+
+  getTypeLabel(type: number): string {
+    const labels: Record<number, string> = { 0: 'Text', 1: 'Code', 2: 'Prompt', 3: 'URL' };
+    return labels[type] ?? 'Text';
   }
 
   // === Export/Import ===
