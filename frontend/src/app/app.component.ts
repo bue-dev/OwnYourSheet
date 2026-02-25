@@ -1,8 +1,10 @@
-import { Component, signal, computed, OnInit } from '@angular/core';
+import { Component, signal, computed, effect } from '@angular/core';
 import { CdkDropList, CdkDrag, CdkDragDrop, moveItemInArray } from '@angular/cdk/drag-drop';
 import { SidebarComponent } from './components/sidebar/sidebar.component';
 import { EntryCardComponent } from './components/entry-card/entry-card.component';
 import { EntryEditorComponent } from './components/entry-editor/entry-editor.component';
+import { ApiService } from './services/api.service';
+import { AuthService } from './services/auth.service';
 import { CategoryService } from './services/category.service';
 import { EntryService } from './services/entry.service';
 import { ClipboardService } from './services/clipboard.service';
@@ -18,6 +20,9 @@ import { Entry, CreateEntry, UpdateEntry } from './models/entry.model';
       <app-sidebar
         [categories]="categories()"
         [selectedCategoryId]="selectedCategory()?.id ?? null"
+        [isAuthenticated]="authService.isAuthenticated()"
+        [userName]="authService.userName()"
+        [userEmail]="authService.userEmail()"
         (selectCategory)="onSelectCategory($event)"
         (addCategory)="onAddCategory($event)"
         (updateCategory)="onUpdateCategory($event)"
@@ -25,6 +30,8 @@ import { Entry, CreateEntry, UpdateEntry } from './models/entry.model';
         (exportData)="onExport()"
         (importData)="triggerImport()"
         (reorderCategories)="onReorderCategories($event)"
+        (login)="authService.login()"
+        (logout)="authService.logout()"
       />
 
       <main class="main-content">
@@ -227,7 +234,7 @@ import { Entry, CreateEntry, UpdateEntry } from './models/entry.model';
     }
   `]
 })
-export class AppComponent implements OnInit {
+export class AppComponent {
   categories = signal<Category[]>([]);
   selectedCategory = signal<Category | null>(null);
   entries = signal<Entry[]>([]);
@@ -250,13 +257,21 @@ export class AppComponent implements OnInit {
   private importInputEl?: HTMLInputElement;
 
   constructor(
+    public authService: AuthService,
+    private api: ApiService,
     private categoryService: CategoryService,
     private entryService: EntryService,
     public clipboard: ClipboardService
-  ) {}
-
-  ngOnInit(): void {
-    this.loadCategories();
+  ) {
+    effect(() => {
+      if (this.authService.isAuthenticated()) {
+        this.loadCategories();
+      } else {
+        this.categories.set([]);
+        this.selectedCategory.set(null);
+        this.entries.set([]);
+      }
+    });
   }
 
   // === Categories ===
@@ -373,17 +388,14 @@ export class AppComponent implements OnInit {
   // === Export/Import ===
 
   onExport(): void {
-    const url = '/api/export';
-    fetch(url)
-      .then(res => res.json())
-      .then(data => {
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `ownyoursheet-export-${new Date().toISOString().split('T')[0]}.json`;
-        a.click();
-        URL.revokeObjectURL(a.href);
-      });
+    this.api.get<object>('/export').subscribe(data => {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `ownyoursheet-export-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
   }
 
   triggerImport(): void {
@@ -400,20 +412,14 @@ export class AppComponent implements OnInit {
     const reader = new FileReader();
     reader.onload = () => {
       const data = JSON.parse(reader.result as string);
-      fetch('/api/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      }).then(() => {
+      this.api.post<void>('/import', data).subscribe(() => {
         this.loadCategories();
         this.selectedCategory.set(null);
         this.entries.set([]);
-        this.clipboard.copyText('').then(); // just to reuse flash
         alert('Import completed successfully!');
       });
     };
     reader.readAsText(file);
-    // Reset input
     (event.target as HTMLInputElement).value = '';
   }
 }

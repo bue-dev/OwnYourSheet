@@ -95,18 +95,45 @@ import { Category } from '../../models/category.model';
       </div>
 
       <div class="sidebar-footer">
-        <button class="btn btn-ghost sidebar-footer-btn" (click)="exportData.emit()" title="Export data">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
-          </svg>
-          Export
-        </button>
-        <button class="btn btn-ghost sidebar-footer-btn" (click)="importData.emit()" title="Import data">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-          </svg>
-          Import
-        </button>
+        @if (isAuthenticated()) {
+          <div class="user-panel">
+            <div class="user-avatar">{{ (userName() ?? userEmail() ?? '?')[0].toUpperCase() }}</div>
+            <div class="user-details">
+              @if (userName()) { <span class="user-name">{{ userName() }}</span> }
+              <span class="user-email">{{ userEmail() }}</span>
+            </div>
+            <button class="btn-icon" (click)="logout.emit()" title="Sign out">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+            </button>
+          </div>
+        } @else {
+          <button class="btn btn-primary sidebar-sign-in" (click)="login.emit()">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+              <polyline points="10 17 15 12 10 7"/>
+              <line x1="15" y1="12" x2="3" y2="12"/>
+            </svg>
+            Sign In
+          </button>
+        }
+        <div class="footer-actions">
+          <button class="btn btn-ghost sidebar-footer-btn" (click)="exportData.emit()" title="Export data">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Export
+          </button>
+          <button class="btn btn-ghost sidebar-footer-btn" (click)="importData.emit()" title="Import data">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            Import
+          </button>
+        </div>
       </div>
     </aside>
   `,
@@ -241,6 +268,66 @@ import { Category } from '../../models/category.model';
       border-top: 1px solid var(--border);
       padding: 10px 12px;
       display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .user-panel {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 8px;
+      border-radius: var(--radius-sm);
+      background: var(--bg-tertiary);
+    }
+
+    .user-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: white;
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .user-details {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .user-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-primary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .user-email {
+      font-size: 11px;
+      color: var(--text-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .sidebar-sign-in {
+      width: 100%;
+      justify-content: center;
+      gap: 8px;
+      font-size: 13px;
+    }
+
+    .footer-actions {
+      display: flex;
       gap: 4px;
     }
 
@@ -255,6 +342,9 @@ import { Category } from '../../models/category.model';
 export class SidebarComponent {
   categories = input.required<Category[]>();
   selectedCategoryId = input<string | null>(null);
+  isAuthenticated = input<boolean>(false);
+  userName = input<string | null>(null);
+  userEmail = input<string | null>(null);
 
   selectCategory = output<Category>();
   addCategory = output<string>();
@@ -263,6 +353,8 @@ export class SidebarComponent {
   exportData = output<void>();
   importData = output<void>();
   reorderCategories = output<Category[]>();
+  login = output<void>();
+  logout = output<void>();
 
   isAddingCategory = signal(false);
   newCategoryTitle = '';
