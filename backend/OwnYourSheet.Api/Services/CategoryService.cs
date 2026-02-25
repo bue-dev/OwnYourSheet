@@ -14,9 +14,10 @@ public class CategoryService
         _db = db;
     }
 
-    public async Task<List<CategoryDto>> GetAllAsync()
+    public async Task<List<CategoryDto>> GetAllAsync(string userId)
     {
         return await _db.Categories
+            .Where(c => c.UserId == userId)
             .OrderBy(c => c.SortOrder)
             .Select(c => new CategoryDto(
                 c.Id,
@@ -29,10 +30,10 @@ public class CategoryService
             .ToListAsync();
     }
 
-    public async Task<CategoryDto?> GetByIdAsync(Guid id)
+    public async Task<CategoryDto?> GetByIdAsync(Guid id, string userId)
     {
         return await _db.Categories
-            .Where(c => c.Id == id)
+            .Where(c => c.Id == id && c.UserId == userId)
             .Select(c => new CategoryDto(
                 c.Id,
                 c.Title,
@@ -44,13 +45,16 @@ public class CategoryService
             .FirstOrDefaultAsync();
     }
 
-    public async Task<CategoryDto> CreateAsync(CreateCategoryDto dto)
+    public async Task<CategoryDto> CreateAsync(CreateCategoryDto dto, string userId)
     {
-        var maxOrder = await _db.Categories.MaxAsync(c => (int?)c.SortOrder) ?? -1;
+        var maxOrder = await _db.Categories
+            .Where(c => c.UserId == userId)
+            .MaxAsync(c => (int?)c.SortOrder) ?? -1;
 
         var category = new Category
         {
             Title = dto.Title,
+            UserId = userId,
             SortOrder = maxOrder + 1
         };
 
@@ -67,9 +71,9 @@ public class CategoryService
         );
     }
 
-    public async Task<CategoryDto?> UpdateAsync(Guid id, UpdateCategoryDto dto)
+    public async Task<CategoryDto?> UpdateAsync(Guid id, UpdateCategoryDto dto, string userId)
     {
-        var category = await _db.Categories.FindAsync(id);
+        var category = await _db.Categories.FirstOrDefaultAsync(c => c.Id == id && c.UserId == userId);
         if (category is null) return null;
 
         category.Title = dto.Title;
@@ -88,9 +92,9 @@ public class CategoryService
         );
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    public async Task<bool> DeleteAsync(Guid id, string userId)
     {
-        var category = await _db.Categories.FindAsync(id);
+        var category = await _db.Categories.FirstOrDefaultAsync(c => c.Id == id && c.UserId == userId);
         if (category is null) return false;
 
         _db.Categories.Remove(category);
@@ -98,11 +102,11 @@ public class CategoryService
         return true;
     }
 
-    public async Task ReorderAsync(List<ReorderItemDto> items)
+    public async Task ReorderAsync(List<ReorderItemDto> items, string userId)
     {
         foreach (var item in items)
         {
-            var category = await _db.Categories.FindAsync(item.Id);
+            var category = await _db.Categories.FirstOrDefaultAsync(c => c.Id == item.Id && c.UserId == userId);
             if (category is not null)
             {
                 category.SortOrder = item.SortOrder;

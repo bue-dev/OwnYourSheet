@@ -17,6 +17,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Category>(entity =>
         {
             entity.HasIndex(e => e.SortOrder);
+            entity.HasIndex(e => e.UserId);
             entity.HasMany(e => e.Entries)
                   .WithOne(e => e.Category)
                   .HasForeignKey(e => e.CategoryId)
@@ -26,6 +27,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Entry>(entity =>
         {
             entity.HasIndex(e => e.CategoryId);
+            entity.HasIndex(e => e.UserId);
             entity.HasIndex(e => new { e.CategoryId, e.SortOrder });
         });
     }

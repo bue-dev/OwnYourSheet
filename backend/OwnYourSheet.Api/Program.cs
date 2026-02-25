@@ -1,8 +1,15 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Identity.Web;
 using OwnYourSheet.Api.Data;
 using OwnYourSheet.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// --- Authentication (Microsoft Entra External ID) ---
+builder.Services.AddAuthentication()
+    .AddMicrosoftIdentityWebApi(builder.Configuration.GetSection("AzureAd"));
+
+builder.Services.AddAuthorization();
 
 // --- Database ---
 var dbPath = Path.Combine(
@@ -53,6 +60,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapControllers();
 
 app.Run();

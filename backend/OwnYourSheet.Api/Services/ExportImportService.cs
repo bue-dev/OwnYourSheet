@@ -14,10 +14,11 @@ public class ExportImportService
         _db = db;
     }
 
-    public async Task<ExportDataDto> ExportAsync()
+    public async Task<ExportDataDto> ExportAsync(string userId)
     {
         var categories = await _db.Categories
-            .Include(c => c.Entries.OrderBy(e => e.SortOrder))
+            .Where(c => c.UserId == userId)
+            .Include(c => c.Entries.Where(e => e.UserId == userId).OrderBy(e => e.SortOrder))
             .OrderBy(c => c.SortOrder)
             .ToListAsync();
 
@@ -44,11 +45,13 @@ public class ExportImportService
         );
     }
 
-    public async Task ImportAsync(ExportDataDto data)
+    public async Task ImportAsync(ExportDataDto data, string userId)
     {
-        // Clear existing data
-        _db.Entries.RemoveRange(_db.Entries);
-        _db.Categories.RemoveRange(_db.Categories);
+        // Clear existing data for this user only
+        var existingEntries = _db.Entries.Where(e => e.UserId == userId);
+        var existingCategories = _db.Categories.Where(c => c.UserId == userId);
+        _db.Entries.RemoveRange(existingEntries);
+        _db.Categories.RemoveRange(existingCategories);
         await _db.SaveChangesAsync();
 
         foreach (var catDto in data.Categories)
@@ -57,6 +60,7 @@ public class ExportImportService
             {
                 Id = catDto.Id,
                 Title = catDto.Title,
+                UserId = userId,
                 SortOrder = catDto.SortOrder
             };
             _db.Categories.Add(category);
@@ -67,6 +71,7 @@ public class ExportImportService
                 {
                     Id = entryDto.Id,
                     CategoryId = category.Id,
+                    UserId = userId,
                     Title = entryDto.Title,
                     Content = entryDto.Content,
                     EntryType = entryDto.EntryType,

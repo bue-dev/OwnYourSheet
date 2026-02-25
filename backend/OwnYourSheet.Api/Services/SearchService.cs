@@ -13,15 +13,16 @@ public class SearchService
         _db = db;
     }
 
-    public async Task<List<SearchResultDto>> SearchAsync(string query)
+    public async Task<List<SearchResultDto>> SearchAsync(string query, string userId)
     {
         var lowerQuery = query.ToLower();
 
         return await _db.Entries
             .Include(e => e.Category)
             .Where(e =>
-                e.Title.ToLower().Contains(lowerQuery) ||
-                e.Content.ToLower().Contains(lowerQuery))
+                e.UserId == userId &&
+                (e.Title.ToLower().Contains(lowerQuery) ||
+                e.Content.ToLower().Contains(lowerQuery)))
             .OrderBy(e => e.Title)
             .Take(50)
             .Select(e => new SearchResultDto(

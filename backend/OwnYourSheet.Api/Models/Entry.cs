@@ -12,6 +12,10 @@ public class Entry
     public Guid CategoryId { get; set; }
 
     [Required]
+    [MaxLength(128)]
+    public string UserId { get; set; } = string.Empty;
+
+    [Required]
     [MaxLength(300)]
     public string Title { get; set; } = string.Empty;
 

@@ -14,30 +14,31 @@ public class EntryService
         _db = db;
     }
 
-    public async Task<List<EntryDto>> GetByCategoryAsync(Guid categoryId)
+    public async Task<List<EntryDto>> GetByCategoryAsync(Guid categoryId, string userId)
     {
         return await _db.Entries
-            .Where(e => e.CategoryId == categoryId)
+            .Where(e => e.CategoryId == categoryId && e.UserId == userId)
             .OrderBy(e => e.SortOrder)
             .Select(e => MapToDto(e))
             .ToListAsync();
     }
 
-    public async Task<EntryDto?> GetByIdAsync(Guid id)
+    public async Task<EntryDto?> GetByIdAsync(Guid id, string userId)
     {
-        var entry = await _db.Entries.FindAsync(id);
+        var entry = await _db.Entries.FirstOrDefaultAsync(e => e.Id == id && e.UserId == userId);
         return entry is null ? null : MapToDto(entry);
     }
 
-    public async Task<EntryDto> CreateAsync(CreateEntryDto dto)
+    public async Task<EntryDto> CreateAsync(CreateEntryDto dto, string userId)
     {
         var maxOrder = await _db.Entries
-            .Where(e => e.CategoryId == dto.CategoryId)
+            .Where(e => e.CategoryId == dto.CategoryId && e.UserId == userId)
             .MaxAsync(e => (int?)e.SortOrder) ?? -1;
 
         var entry = new Entry
         {
             CategoryId = dto.CategoryId,
+            UserId = userId,
             Title = dto.Title,
             Content = dto.Content,
             EntryType = dto.EntryType,
@@ -58,9 +59,9 @@ public class EntryService
         return MapToDto(entry);
     }
 
-    public async Task<EntryDto?> UpdateAsync(Guid id, UpdateEntryDto dto)
+    public async Task<EntryDto?> UpdateAsync(Guid id, UpdateEntryDto dto, string userId)
     {
-        var entry = await _db.Entries.FindAsync(id);
+        var entry = await _db.Entries.FirstOrDefaultAsync(e => e.Id == id && e.UserId == userId);
         if (entry is null) return null;
 
         if (dto.Title is not null) entry.Title = dto.Title;
@@ -80,9 +81,9 @@ public class EntryService
         return MapToDto(entry);
     }
 
-    public async Task<bool> DeleteAsync(Guid id)
+    public async Task<bool> DeleteAsync(Guid id, string userId)
     {
-        var entry = await _db.Entries.FindAsync(id);
+        var entry = await _db.Entries.FirstOrDefaultAsync(e => e.Id == id && e.UserId == userId);
         if (entry is null) return false;
 
         _db.Entries.Remove(entry);
@@ -90,11 +91,11 @@ public class EntryService
         return true;
     }
 
-    public async Task ReorderAsync(List<ReorderItemDto> items)
+    public async Task ReorderAsync(List<ReorderItemDto> items, string userId)
     {
         foreach (var item in items)
         {
-            var entry = await _db.Entries.FindAsync(item.Id);
+            var entry = await _db.Entries.FirstOrDefaultAsync(e => e.Id == item.Id && e.UserId == userId);
             if (entry is not null)
             {
                 entry.SortOrder = item.SortOrder;

@@ -1,9 +1,12 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OwnYourSheet.Api.DTOs;
+using OwnYourSheet.Api.Extensions;
 using OwnYourSheet.Api.Services;
 
 namespace OwnYourSheet.Api.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 public class SearchController : ControllerBase
@@ -21,6 +24,6 @@ public class SearchController : ControllerBase
         if (string.IsNullOrWhiteSpace(q) || q.Length < 2)
             return Ok(new List<SearchResultDto>());
 
-        return await _service.SearchAsync(q);
+        return await _service.SearchAsync(q, User.GetUserId());
     }
 }
