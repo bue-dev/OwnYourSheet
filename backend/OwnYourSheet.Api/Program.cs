@@ -11,16 +11,12 @@ builder.Services.AddAuthentication()
 
 builder.Services.AddAuthorization();
 
-// --- Database ---
-var dbPath = Path.Combine(
-    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-    "OwnYourSheet",
-    "ownyoursheet.db"
-);
-Directory.CreateDirectory(Path.GetDirectoryName(dbPath)!);
+// --- Database (SQL Server) ---
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection is required.");
 
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlite($"Data Source={dbPath}"));
+    options.UseSqlServer(connectionString));
 
 // --- Services ---
 builder.Services.AddScoped<CategoryService>();
@@ -31,18 +27,20 @@ builder.Services.AddScoped<SearchService>();
 // --- Controllers ---
 builder.Services.AddControllers();
 
-// --- CORS (for Angular dev server) ---
+// --- CORS (origins from config — empty in prod = no CORS headers) ---
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("DevCors", policy =>
+    options.AddPolicy("AppCors", policy =>
     {
-        policy.WithOrigins("http://localhost:4200")
-              .AllowAnyHeader()
-              .AllowAnyMethod();
+        var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+        if (origins.Length > 0)
+        {
+            policy.WithOrigins(origins)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        }
     });
 });
-
-// --- Swagger (can be added later if needed) ---
 
 var app = builder.Build();
 
@@ -53,15 +51,27 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate();
 }
 
-// --- Pipeline ---
 if (app.Environment.IsDevelopment())
 {
-    app.UseCors("DevCors");
+    app.UseDeveloperExceptionPage();
+    app.UseHttpsRedirection();
+}
+else
+{
+    app.UseHsts();
+    app.UseDefaultFiles();
+    app.UseStaticFiles();
 }
 
-app.UseHttpsRedirection();
+// --- Pipeline ---
+app.UseCors("AppCors");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+if (!app.Environment.IsDevelopment())
+{
+    app.MapFallbackToFile("index.html");
+}
 
 app.Run();

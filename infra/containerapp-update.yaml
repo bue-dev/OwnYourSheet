@@ -1,0 +1,19 @@
+properties:
+  template:
+    containers:
+      - name: ownyoursheet
+        image: acrownyoursheet.azurecr.io/ownyoursheet:v6
+        resources:
+          cpu: 0.5
+          memory: 1Gi
+        env:
+          - name: ConnectionStrings__DefaultConnection
+            secretRef: db-connection-string
+          - name: AzureAd__Instance
+            value: https://ownyoursheet.ciamlogin.com/
+          - name: AzureAd__TenantId
+            value: 09c63281-32bd-4f55-98a9-6a720a262e89
+          - name: AzureAd__ClientId
+            value: dbe2c0ad-31f7-4776-9210-536afe424cfb
+          - name: AzureAd__Scopes
+            value: access_as_user

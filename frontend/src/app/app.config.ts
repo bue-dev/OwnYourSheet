@@ -23,7 +23,7 @@ export function msalInstanceFactory(): IPublicClientApplication {
     auth: {
       clientId: environment.msalConfig.clientId,
       authority: environment.msalConfig.authority,
-      redirectUri: environment.msalConfig.redirectUri,
+      redirectUri: window.location.origin,
     },
     cache: {
       cacheLocation: 'localStorage',

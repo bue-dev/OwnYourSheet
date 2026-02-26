@@ -1,0 +1,10 @@
+.git
+.github
+.vscode
+.angular
+node_modules
+dist
+bin
+obj
+*.md
+*.ps1
