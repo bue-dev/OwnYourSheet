@@ -6,7 +6,7 @@ A web app for managing cheat sheets, code snippets, prompts, and URLs with insta
 
 - **Frontend:** Angular 21
 - **Backend:** .NET 10 Web API
-- **Database:** SQL Server (local via Docker, Azure SQL in production)
+- **Database:** SQL Server (local via Docker or LocalDB, Azure SQL in production)
 - **Auth:** Microsoft Entra External ID (Azure AD B2C) with MSAL
 - **CI/CD:** GitHub Actions → Azure Container Apps
 
@@ -14,37 +14,50 @@ A web app for managing cheat sheets, code snippets, prompts, and URLs with insta
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 - [Node.js 20+](https://nodejs.org/)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (for local SQL Server)
 - [VS Code](https://code.visualstudio.com/)
+- **Database (one of):**
+  - [Docker Desktop](https://www.docker.com/products/docker-desktop/) or [Podman Desktop](https://podman-desktop.io/) (requires Hyper-V)
+  - [SQL Server LocalDB](https://www.microsoft.com/en-us/sql-server/sql-server-downloads) (lightweight, no containers needed — included with Visual Studio)
 
 ## Quick Start
 
-### 1. Database
+Two start scripts are provided. Pick the one matching your setup:
 
-```bash
-docker compose up -d
+### Option A: Docker / Podman
+
+```powershell
+.\start-docker.ps1
 ```
 
-Starts SQL Server 2022 on `localhost:1433`.
+Starts a SQL Server container, waits for it to be ready, then launches backend and frontend.
 
-### 2. Backend
+### Option B: LocalDB (no containers)
+
+```powershell
+.\start-localdb.ps1
+```
+
+Uses SQL Server LocalDB — no Docker, no Hyper-V required. The script starts the LocalDB instance, then launches backend and frontend.
+
+### Manual startup
+
+If you prefer to start things individually:
 
 ```bash
+# Database (Docker)
+docker compose up -d
+
+# Backend
 cd backend/OwnYourSheet.Api
 dotnet run
-```
 
-The API auto-migrates the database on startup. Runs at `http://localhost:5000`.
-
-### 3. Frontend
-
-```bash
+# Frontend
 cd frontend
 npm install
 ng serve
 ```
 
-Open `http://localhost:4200`. Angular proxies API calls to the backend.
+The API auto-migrates the database on startup. Frontend runs at `http://localhost:4200`.
 
 ## VS Code
 
@@ -64,6 +77,8 @@ OwnYourSheet/
 ├── frontend/                   Angular 21 SPA
 ├── .github/workflows/          CI/CD pipeline
 ├── .vscode/                    Tasks, launch configs, extensions
+├── start-docker.ps1            Start script (Docker/Podman)
+├── start-localdb.ps1           Start script (LocalDB)
 ├── docker-compose.yml          Local SQL Server
 └── Dockerfile                  Production multi-stage build
 ```
